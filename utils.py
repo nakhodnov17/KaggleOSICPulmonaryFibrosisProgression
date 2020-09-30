@@ -89,7 +89,7 @@ def getkey(dcm, key):
         base_value = dcm[key]
     except:
         print(dcm.PatientID, dcm.InstanceNumber, key)
-        return'KeyError'
+        return 'KeyError'
     try:
         return base_value.value
     except:
