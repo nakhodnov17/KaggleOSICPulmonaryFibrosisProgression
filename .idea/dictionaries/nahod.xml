@@ -1,0 +1,29 @@
+<component name="ProjectDictionaryState">
+  <dictionary name="nahod">
+    <words>
+      <w>cmap</w>
+      <w>datapoints</w>
+      <w>figsize</w>
+      <w>fvcs</w>
+      <w>getkey</w>
+      <w>hborder</w>
+      <w>hbrd</w>
+      <w>hdistance</w>
+      <w>idxs</w>
+      <w>ncols</w>
+      <w>nrows</w>
+      <w>osic</w>
+      <w>quantile</w>
+      <w>resample</w>
+      <w>segmentate</w>
+      <w>smll</w>
+      <w>thresholded</w>
+      <w>touint</w>
+      <w>tqdm</w>
+      <w>vborder</w>
+      <w>vbrd</w>
+      <w>vdistance</w>
+      <w>verts</w>
+    </words>
+  </dictionary>
+</component>
