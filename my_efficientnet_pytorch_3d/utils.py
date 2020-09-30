@@ -258,7 +258,7 @@ def efficientnet3d(width_coefficient=None, depth_coefficient=None, dropout_rate=
     """ Creates a efficientnet model. """
 
     blocks_args = [
-        'r1_k3_s111_e1_i32_o16_se0.25',
+        'r1_k3_s111_e1_i32_o16_se0.25',  # было 'r1_k3_s222_e1_i32_o16_se0.25',
         'r2_k3_s222_e6_i16_o24_se0.25',
         'r2_k5_s222_e6_i24_o40_se0.25',
         'r3_k3_s222_e6_i40_o80_se0.25',
