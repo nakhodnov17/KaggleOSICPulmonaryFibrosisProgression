@@ -4,7 +4,7 @@ import cv2
 
 from typing import Dict, List
 
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 
 import sparse
 
@@ -579,7 +579,7 @@ def segment_lungs(image, patient_n, image_n, display=False):
 class CTDataset(torch.utils.data.Dataset):
     def __init__(
             self, root, csv_path, train=True, transform=None, test_size=0.25,
-            random_state=42, padding_mode='min_max', padding_constant=None, pad_global=False
+            random_state=42, padding_mode='max_min', padding_constant=None, pad_global=False
     ):
         assert test_size is not None
         assert padding_mode in {None, 'edge', 'mean', 'max_min', 'constant'}

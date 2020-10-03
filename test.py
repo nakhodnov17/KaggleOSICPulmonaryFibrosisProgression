@@ -1,6 +1,4 @@
-import importlib
 import time
-from collections import namedtuple
 
 import torch.utils.data
 
@@ -28,7 +26,7 @@ if __name__ == '__main__':
         padding_mode=None, padding_constant=None, pad_global=False
     )
 
-    dl = torch.utils.data.DataLoader(dataset_train, batch_size=1, num_workers=3)
+    dl = torch.utils.data.DataLoader(dataset_train, batch_size=1, shuffle=True, num_workers=6)
 
     st_time = time.time()
     for obj in dl:
