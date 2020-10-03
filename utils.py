@@ -683,6 +683,23 @@ class CTDataset(torch.utils.data.Dataset):
         all_weeks, all_fvcs, features = self._table_features[patient]
         features = torch.tensor([value for key, value in meta_processed.items()] + features)
 
+        # weeks_mean, weeks_std = 31.861846352485475, 23.240045178171002
+        # fvsc_mean, fvsc_std = 2690.479018721756, 832.5021066817238
+
+        features_mean, features_std = (
+            torch.tensor([
+                2.76561876e+00, 1.42373805e+00, 1.25608294e+00, 1.33766080e+02,
+                -5.23857955e+02, -1.24154545e+03, 6.72613636e+01, 7.89772727e-01,
+                2.10227273e-01, 6.70454545e-01, 2.78409091e-01, 5.11363636e-02
+            ]),
+            torch.tensor([
+                2.34777445e+00, 1.47563586e-01, 9.90841780e-01, 5.85989667e+01,
+                1.92059435e+02, 8.48268563e+02, 7.06784382e+00, 4.07469958e-01,
+                4.07469958e-01, 4.70048134e-01, 4.48215873e-01, 2.20275818e-01
+            ])
+        )
+        features = (features - features_mean) / features_std
+
         if self.padding_mode is None:
             pass
         if self.padding_mode == 'edge':
