@@ -24,6 +24,8 @@ import numpy as np
 
 import pandas as pd
 
+import torchio
+
 import torch.utils.data
 
 from pydicom import dcmread
@@ -578,8 +580,8 @@ class CTDataset(torch.utils.data.Dataset):
     _ReturnValue = namedtuple('ReturnValue', ['weeks', 'fvcs', 'features', 'masks', 'images'])
 
     def __init__(
-            self, root, csv_path, train=True, test_size=0.25, random_state=42,
-            padding_mode='min_max', padding_constant=None
+            self, root, csv_path, train=True, transform=None, test_size=0.25,
+            random_state=42, padding_mode='min_max', padding_constant=None
     ):
         assert test_size is not None
         assert padding_mode in {None, 'edge', 'mean', 'max_min', 'constant'}
@@ -589,6 +591,7 @@ class CTDataset(torch.utils.data.Dataset):
         self.train = train
         self.csv_path = csv_path
         self.test_size = test_size
+        self.transform = transform
         self.random_state = random_state
         self.padding_mode = padding_mode
         self.padding_constant = padding_constant
@@ -631,13 +634,15 @@ class CTDataset(torch.utils.data.Dataset):
                 all_weeks, all_fvcs, [age] + sex + smoking_status
             )
 
-    def __getitem__(self, index):
+    def __getitem__(self, index, transform=None):
         """
         Args:
             index (int): Index
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
+        transform = transform if transform is not None else self.transform
+
         patient = self._train_patients[index] if self.train else self._test_patients[index]
         base_path = os.path.join(self.root, patient)
 
@@ -687,7 +692,23 @@ class CTDataset(torch.utils.data.Dataset):
             all_weeks, all_fvcs = [-13] + all_weeks + [133], [self.padding_constant] + all_fvcs + [
                 self.padding_constant]
 
-        return CTDataset._ReturnValue(weeks=all_weeks, fvcs=all_fvcs, features=features, masks=masks, images=images)
+        images = torch.tensor(images[None, :, :, :])
+        masks = torch.tensor(masks[None, :, :, :].todense())
+
+        if transform is not None:
+            # noinspection PyTypeChecker
+            subject = torchio.Subject(
+                masks=torchio.ScalarImage(tensor=masks),
+                images=torchio.ScalarImage(tensor=images)
+            )
+            transformed_subject = transform(subject)
+            masks = transformed_subject.masks
+            images = transformed_subject.images
+
+        return CTDataset._ReturnValue(
+            weeks=all_weeks, fvcs=all_fvcs, features=features,
+            masks=masks, images=images
+        )
 
     def __len__(self):
         return len(self._train_patients if self.train else self._test_patients)
