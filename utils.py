@@ -577,11 +577,9 @@ def segment_lungs(image, patient_n, image_n, display=False):
 
 
 class CTDataset(torch.utils.data.Dataset):
-    _ReturnValue = namedtuple('ReturnValue', ['weeks', 'fvcs', 'features', 'masks', 'images'])
-
     def __init__(
             self, root, csv_path, train=True, transform=None, test_size=0.25,
-            random_state=42, padding_mode='min_max', padding_constant=None
+            random_state=42, padding_mode='min_max', padding_constant=None, pad_global=False
     ):
         assert test_size is not None
         assert padding_mode in {None, 'edge', 'mean', 'max_min', 'constant'}
@@ -592,9 +590,13 @@ class CTDataset(torch.utils.data.Dataset):
         self.csv_path = csv_path
         self.test_size = test_size
         self.transform = transform
+
         self.random_state = random_state
+
         self.padding_mode = padding_mode
         self.padding_constant = padding_constant
+
+        self.pad_global = pad_global
 
         if not os.path.exists(self.root):
             raise ValueError('Data is missing')
@@ -617,6 +619,7 @@ class CTDataset(torch.utils.data.Dataset):
             all_fvcs = patient_data.FVC.tolist()
 
             all_weeks, all_fvcs = zip(*sorted(zip(all_weeks, all_fvcs), key=lambda x: x[0]))
+            all_weeks, all_fvcs = list(all_weeks), list(all_fvcs)
 
             age = sorted(zip(*np.unique(patient_data.Age, return_counts=True)), key=lambda x: x[1])[-1][0]
             sex = sorted(zip(*np.unique(patient_data.Sex, return_counts=True)), key=lambda x: x[1])[-1][0]
@@ -678,7 +681,7 @@ class CTDataset(torch.utils.data.Dataset):
                     pass
 
         all_weeks, all_fvcs, features = self._table_features[patient]
-        features = [value for key, value in meta_processed.items()] + features
+        features = torch.tensor([value for key, value in meta_processed.items()] + features)
 
         if self.padding_mode is None:
             pass
@@ -692,6 +695,14 @@ class CTDataset(torch.utils.data.Dataset):
             all_weeks, all_fvcs = [-13] + all_weeks + [133], [self.padding_constant] + all_fvcs + [
                 self.padding_constant]
 
+        if self.pad_global:
+            n_measures = len(all_weeks)
+            all_fvcs = torch.tensor(all_fvcs + [-100] * (200 - n_measures))
+            all_weeks = torch.tensor(all_weeks + [-100] * (200 - n_measures))
+        else:
+            all_fvcs = torch.tensor(all_fvcs)
+            all_weeks = torch.tensor(all_weeks)
+
         images = torch.tensor(images[None, :, :, :])
         masks = torch.tensor(masks[None, :, :, :].todense())
 
@@ -702,13 +713,10 @@ class CTDataset(torch.utils.data.Dataset):
                 images=torchio.ScalarImage(tensor=images)
             )
             transformed_subject = transform(subject)
-            masks = transformed_subject.masks
-            images = transformed_subject.images
+            masks = transformed_subject.masks.tensor
+            images = transformed_subject.images.tensor
 
-        return CTDataset._ReturnValue(
-            weeks=all_weeks, fvcs=all_fvcs, features=features,
-            masks=masks, images=images
-        )
+        return all_weeks, all_fvcs, features, masks, images
 
     def __len__(self):
         return len(self._train_patients if self.train else self._test_patients)
