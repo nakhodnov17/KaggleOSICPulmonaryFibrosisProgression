@@ -615,11 +615,12 @@ class CTDataset(torch.utils.data.Dataset):
         for patient in self._patients:
             patient_data = table_data[table_data.Patient == patient]
 
+            all_percents = patient_data.Percent.tolist()
             all_weeks = patient_data.Weeks.tolist()
             all_fvcs = patient_data.FVC.tolist()
 
-            all_weeks, all_fvcs = zip(*sorted(zip(all_weeks, all_fvcs), key=lambda x: x[0]))
-            all_weeks, all_fvcs = list(all_weeks), list(all_fvcs)
+            all_percents, all_weeks, all_fvcs = zip(*sorted(zip(all_percents, all_weeks, all_fvcs), key=lambda x: x[1]))
+            all_percents, all_weeks, all_fvcs = list(all_percents), list(all_weeks), list(all_fvcs)
 
             age = sorted(zip(*np.unique(patient_data.Age, return_counts=True)), key=lambda x: x[1])[-1][0]
             sex = sorted(zip(*np.unique(patient_data.Sex, return_counts=True)), key=lambda x: x[1])[-1][0]
@@ -634,7 +635,7 @@ class CTDataset(torch.utils.data.Dataset):
                 [0, 0, 0]
             )
             self._table_features[patient] = (
-                all_weeks, all_fvcs, [age] + sex + smoking_status
+                all_percents, all_weeks, all_fvcs, [age] + sex + smoking_status
             )
 
     def __getitem__(self, index, transform=None):
@@ -680,7 +681,7 @@ class CTDataset(torch.utils.data.Dataset):
                 elif key == 'PositionReferenceIndicator':
                     pass
 
-        all_weeks, all_fvcs, features = self._table_features[patient]
+        all_percents, all_weeks, all_fvcs, features = self._table_features[patient]
         features = torch.tensor([value for key, value in meta_processed.items()] + features)
 
         # weeks_mean, weeks_std = 31.861846352485475, 23.240045178171002
@@ -716,9 +717,11 @@ class CTDataset(torch.utils.data.Dataset):
             n_measures = len(all_weeks)
             all_fvcs = torch.tensor(all_fvcs + [-100] * (200 - n_measures))
             all_weeks = torch.tensor(all_weeks + [-100] * (200 - n_measures))
+            all_percents = torch.tensor(all_percents + [-100] * (200 - n_measures))
         else:
             all_fvcs = torch.tensor(all_fvcs)
             all_weeks = torch.tensor(all_weeks)
+            all_percents = torch.tensor(all_percents)
 
         images = torch.tensor(images[None, :, :, :])
         masks = torch.tensor(masks[None, :, :, :].todense())
@@ -733,7 +736,7 @@ class CTDataset(torch.utils.data.Dataset):
             masks = transformed_subject.masks.tensor
             images = transformed_subject.images.tensor
 
-        return all_weeks, all_fvcs, features, masks, images
+        return all_percents, all_weeks, all_fvcs, features, masks, images
 
     def __len__(self):
         return len(self._train_patients if self.train else self._test_patients)
