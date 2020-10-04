@@ -579,7 +579,7 @@ def segment_lungs(image, patient_n, image_n, display=False):
 class CTDataset(torch.utils.data.Dataset):
     def __init__(
             self, root, csv_path, train=True, transform=None, test_size=0.25,
-            random_state=42, padding_mode='max_min', padding_constant=None, pad_global=False
+            random_state=42, padding_mode=None, padding_constant=None, pad_global=False
     ):
         assert test_size is not None
         assert padding_mode in {None, 'edge', 'mean', 'max_min', 'constant'}
@@ -704,14 +704,21 @@ class CTDataset(torch.utils.data.Dataset):
         if self.padding_mode is None:
             pass
         if self.padding_mode == 'edge':
-            all_weeks, all_fvcs = [-13] + all_weeks + [133], [all_fvcs[0]] + all_fvcs + [all_fvcs[1]]
+            all_weeks = [-13] + all_weeks + [133]
+            all_fvcs = [all_fvcs[0]] + all_fvcs + [all_fvcs[1]]
+            all_percents = [all_percents[0]] + all_percents + [all_percents[1]]
         if self.padding_mode == 'mean':
-            all_weeks, all_fvcs = [-13] + all_weeks + [133], [np.mean(all_fvcs)] + all_fvcs + [np.mean(all_fvcs)]
+            all_weeks = [-13] + all_weeks + [133]
+            all_fvcs = [np.mean(all_fvcs)] + all_fvcs + [np.mean(all_fvcs)]
+            all_percents = [np.mean(all_percents)] + all_percents + [np.mean(all_percents)]
         if self.padding_mode == 'max_min':
-            all_weeks, all_fvcs = [-13] + all_weeks + [133], [np.max(all_fvcs)] + all_fvcs + [np.min(all_fvcs)]
+            all_weeks = [-13] + all_weeks + [133]
+            all_fvcs = [np.max(all_fvcs)] + all_fvcs + [np.min(all_fvcs)]
+            all_percents = [np.max(all_percents)] + all_percents + [np.min(all_percents)]
         if self.padding_mode == 'constant':
-            all_weeks, all_fvcs = [-13] + all_weeks + [133], [self.padding_constant] + all_fvcs + [
-                self.padding_constant]
+            all_weeks = [-13] + all_weeks + [133]
+            all_fvcs = [self.padding_constant] + all_fvcs + [self.padding_constant]
+            all_percents = [self.padding_constant] + all_percents + [self.padding_constant]
 
         if self.pad_global:
             n_measures = len(all_weeks)
