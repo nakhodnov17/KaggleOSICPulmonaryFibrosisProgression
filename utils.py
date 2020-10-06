@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from collections import defaultdict
 
-import sparse
+# import sparse
 
 import skimage
 import skimage.filters
@@ -24,7 +24,7 @@ import numpy as np
 
 import pandas as pd
 
-import torchio
+# import torchio
 
 import torch.utils.data
 
@@ -148,7 +148,7 @@ def resample(image, target_shape, slice_thickness, pixel_spacing):
     return image, new_spacing
 
 
-def segmentate_patient(mode, patient_n):
+def segmentate_patient(mode, patient_n, image_path='./data', perform_hack=True):
     _transformations_in_train = defaultdict(lambda: lambda x: x, {
         'ID00014637202177757139317': lambda x: crop(x, (x.shape[0] // 2, x.shape[1] // 2), (512, 512)),
         'ID00067637202189903532242': lambda x: crop(x, (x.shape[0] // 2, x.shape[1] // 2), (512, 512)),
@@ -214,7 +214,7 @@ def segmentate_patient(mode, patient_n):
         'train': _transformations_in_train
     }
 
-    base_path = os.path.join('./data', mode)
+    base_path = os.path.join(image_path, mode)
     patient = sorted(os.listdir(base_path))[patient_n]
     patient_path = os.path.join(base_path, patient)
 
@@ -231,10 +231,13 @@ def segmentate_patient(mode, patient_n):
                 break
         ct_path = os.path.join(patient_path, ct_name)
         ct, ct_image = transform_to_hu(dcmread(ct_path))
-        ct_image = _transformations[mode][patient](ct_image)
+        if patient in _transformations[mode]:
+            ct_image = _transformations[mode][patient](ct_image)
+        else:
+            ct_image = crop(ct_image, (ct_image.shape[0] // 2, ct_image.shape[1] // 2), (512, 512))
         all_images.append(ct_image)
 
-        lungs, residual, mask = segment_lungs(ct_image, patient_n, idx, display=False)
+        lungs, residual, mask = segment_lungs(ct_image, patient_n, idx, display=False, perform_hack=perform_hack)
 
         all_lungs.append(lungs)
         all_residuals.append(residual)
@@ -252,7 +255,7 @@ def _get_max_quantile(_array, _thresh=0.9):
     return sorted_array[thresh_idx]
 
 
-def segment_lungs(image, patient_n, image_n, display=False):
+def segment_lungs(image, patient_n, image_n, display=False, perform_hack=True):
     def _contour_border_distance(_contour, shape):
         _distance = 2 * shape[0]
         _vdistance = 2 * shape[0]
@@ -361,80 +364,83 @@ def segment_lungs(image, patient_n, image_n, display=False):
         return _mask
 
     thresh = -700
-    if patient_n == 51:
-        thresh = -950
-    if patient_n == 57:
-        if image_n >= 9:
-            thresh = -800
-        else:
+    if perform_hack:
+        if patient_n == 51:
             thresh = -950
-    if patient_n == 63:
-        thresh = -900
-    if patient_n == 64:
-        thresh = -900
-    if patient_n == 78:
-        thresh = -800
-    if patient_n == 96:
-        thresh = -900
-    if patient_n == 108:
-        thresh = -300
+        if patient_n == 57:
+            if image_n >= 9:
+                thresh = -800
+            else:
+                thresh = -950
+        if patient_n == 63:
+            thresh = -900
+        if patient_n == 64:
+            thresh = -900
+        if patient_n == 78:
+            thresh = -800
+        if patient_n == 96:
+            thresh = -900
+        if patient_n == 108:
+            thresh = -300
 
     thresh_mask = image <= thresh
 
-    if patient_n == 30:
-        if image_n in {0, 1, 2, 3, 4, 5, 6, 7, 8}:
-            thresh_mask = np.zeros_like(thresh_mask)
+    if perform_hack:
+        if patient_n == 30:
+            if image_n in {0, 1, 2, 3, 4, 5, 6, 7, 8}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 54:
-        if image_n in {0}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 54:
+            if image_n in {0}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 57:
-        if image_n in {0, 1, 2, 3}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 57:
+            if image_n in {0, 1, 2, 3}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 63:
-        if image_n in {315, 316, 318, 319, 322, 323, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 63:
+            if image_n in {315, 316, 318, 319, 322, 323, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 64:
-        if image_n in {_ for _ in range(34)}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 64:
+            if image_n in {_ for _ in range(34)}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 78:
-        if image_n in {0, 1, 2, 3, 4, 5}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 78:
+            if image_n in {0, 1, 2, 3, 4, 5}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 80:
-        if image_n in {0, 1, 2, 3}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 80:
+            if image_n in {0, 1, 2, 3}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 86:
-        if image_n in {_ for _ in range(127)}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 86:
+            if image_n in {_ for _ in range(127)}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 115:
-        if image_n in {0, 1}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 115:
+            if image_n in {0, 1}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n == 121:
-        if image_n in {0, 1, 2, 3, 4, 5}:
-            thresh_mask = np.zeros_like(thresh_mask)
+        if patient_n == 121:
+            if image_n in {0, 1, 2, 3, 4, 5}:
+                thresh_mask = np.zeros_like(thresh_mask)
 
-    if patient_n >= 26:
-        # Remove small holes and disconnections (Fixes patient №26. Need to check first 26 patients)
-        # Bad for some patients with № < 26
-        kernel = skimage.morphology.disk(3)
-        thresh_mask = skimage.morphology.binary_closing(thresh_mask, selem=kernel)
+        if patient_n >= 26:
+            # Remove small holes and disconnections (Fixes patient №26. Need to check first 26 patients)
+            # Bad for some patients with № < 26
+            kernel = skimage.morphology.disk(3)
+            thresh_mask = skimage.morphology.binary_closing(thresh_mask, selem=kernel)
 
     thresh_mask = skimage.segmentation.clear_border(thresh_mask)
 
-    if patient_n == 57:
-        if image_n in {4, 5, 6}:
-            kernel = np.ones([3, 3], dtype=np.bool)
-            thresh_mask = skimage.morphology.erosion(thresh_mask, selem=kernel)
-            kernel = np.ones([2, 2], dtype=np.bool)
-            thresh_mask = skimage.morphology.erosion(thresh_mask, selem=kernel)
+    if perform_hack:
+        if patient_n == 57:
+            if image_n in {4, 5, 6}:
+                kernel = np.ones([3, 3], dtype=np.bool)
+                thresh_mask = skimage.morphology.erosion(thresh_mask, selem=kernel)
+                kernel = np.ones([2, 2], dtype=np.bool)
+                thresh_mask = skimage.morphology.erosion(thresh_mask, selem=kernel)
 
     # Smooth image with
     lungs_mask = skimage.filters.median(thresh_mask)
@@ -452,34 +458,36 @@ def segment_lungs(image, patient_n, image_n, display=False):
     lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
     lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
 
-    if patient_n == 68:
-        if image_n in {187}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-    if patient_n == 84:
-        if image_n in {67, 68}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+    if perform_hack:
+        if patient_n == 68:
+            if image_n in {187}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+        if patient_n == 84:
+            if image_n in {67, 68}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
 
     # Remove some garbage
     lungs_mask = _filter_contours(lungs_mask)
 
-    if patient_n == 68:
-        if image_n in {187}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-    if patient_n == 84:
-        if image_n in {67, 68}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+    if perform_hack:
+        if patient_n == 68:
+            if image_n in {187}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+        if patient_n == 84:
+            if image_n in {67, 68}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
 
     # Squeeze image horizontally back
     kernel = np.ones([1, 7], dtype=np.bool)
@@ -494,27 +502,28 @@ def segment_lungs(image, patient_n, image_n, display=False):
     kernel = np.ones([3, 1], dtype=np.bool)
     lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
 
-    if patient_n == 67:
-        if image_n in {51, 52, 53, 54, 55, 56, 57, 58, 59, 69, 70, 83}:
-            kernel = np.ones([5, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-    if patient_n == 86:
-        if image_n in {380, 383, 384, 385, 386, 387, 388, 389, 390}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-    if patient_n == 121:
-        if image_n in {148, 149, 150, 151, 152, 153, 154, 155, 156, 157}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+    if perform_hack:
+        if patient_n == 67:
+            if image_n in {51, 52, 53, 54, 55, 56, 57, 58, 59, 69, 70, 83}:
+                kernel = np.ones([5, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+        if patient_n == 86:
+            if image_n in {380, 383, 384, 385, 386, 387, 388, 389, 390}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+        if patient_n == 121:
+            if image_n in {148, 149, 150, 151, 152, 153, 154, 155, 156, 157}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.erosion(lungs_mask, selem=kernel)
 
     # Remove small holes
     lungs_mask = scipy.ndimage.binary_fill_holes(lungs_mask)
@@ -522,27 +531,28 @@ def segment_lungs(image, patient_n, image_n, display=False):
     kernel = np.ones([3, 1], dtype=np.bool)
     lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
 
-    if patient_n == 67:
-        if image_n in {51, 52, 53, 54, 55, 56, 57, 58, 59, 69, 70, 83}:
-            kernel = np.ones([5, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-    if patient_n == 86:
-        if image_n in {380, 383, 384, 385, 386, 387, 388, 389, 390}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-    if patient_n == 121:
-        if image_n in {148, 149, 150, 151, 152, 153, 154, 155, 156, 157}:
-            kernel = np.ones([3, 1], dtype=np.bool)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
-            lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+    if perform_hack:
+        if patient_n == 67:
+            if image_n in {51, 52, 53, 54, 55, 56, 57, 58, 59, 69, 70, 83}:
+                kernel = np.ones([5, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+        if patient_n == 86:
+            if image_n in {380, 383, 384, 385, 386, 387, 388, 389, 390}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+        if patient_n == 121:
+            if image_n in {148, 149, 150, 151, 152, 153, 154, 155, 156, 157}:
+                kernel = np.ones([3, 1], dtype=np.bool)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
+                lungs_mask = skimage.morphology.dilation(lungs_mask, selem=kernel)
 
     lungs = lungs_mask * image
     residual = (1.0 - lungs_mask) * image
@@ -652,7 +662,8 @@ class CTDataset(torch.utils.data.Dataset):
 
         # noinspection PyTypeChecker
         meta = np.load(os.path.join(base_path, 'meta.npy'), allow_pickle=True).tolist()  # type: Dict[List]
-        masks = sparse.load_npz(os.path.join(base_path, 'masks.npz'))
+        # masks = sparse.load_npz(os.path.join(base_path, 'masks.npz'))
+        masks = np.load(os.path.join(base_path, 'masks.npy'))
         images = np.load(os.path.join(base_path, 'images.npy'))
 
         meta_processed = dict()
@@ -731,7 +742,8 @@ class CTDataset(torch.utils.data.Dataset):
             all_percents = torch.tensor(all_percents)
 
         images = torch.tensor(images[None, :, :, :])
-        masks = torch.tensor(masks[None, :, :, :].todense())
+        # masks = torch.tensor(masks[None, :, :, :].todense())
+        masks = torch.tensor(masks[None, :, :, :])
 
         if transform is not None:
             # noinspection PyTypeChecker
